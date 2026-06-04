@@ -27,6 +27,8 @@ class ChatProvider with ChangeNotifier {
   List<Map<String, dynamic>> _availableModels = [];
   // Текущая выбранная модель
   String? _currentModel;
+  // Ошибка загрузки моделей
+  String? _modelsError;
   // Баланс пользователя
   String _balance = '\$0.00';
   // Флаг загрузки
@@ -46,13 +48,14 @@ class ChatProvider with ChangeNotifier {
   List<Map<String, dynamic>> get availableModels => _availableModels;
   // Геттер для получения текущей модели
   String? get currentModel => _currentModel;
+  String? get modelsError => _modelsError;
   // Геттер для получения баланса
   String get balance => _balance;
   // Геттер для получения состояния загрузки
   bool get isLoading => _isLoading;
 
   // Геттер для получения базового URL
-  String? get baseUrl => _api.baseUrl;
+  String? get baseUrl => null;
 
   // Конструктор провайдера
   ChatProvider() {
@@ -81,11 +84,25 @@ class ChatProvider with ChangeNotifier {
     }
   }
 
+  Future<void> refreshSettings() async {
+    _availableModels = [];
+    _currentModel = null;
+    _modelsError = null;
+    notifyListeners();
+    await _loadModels();
+    await _loadBalance();
+  }
+
   // Метод загрузки доступных моделей
   Future<void> _loadModels() async {
     try {
       // Получение списка моделей из API
       _availableModels = await _api.getModels();
+      if (_availableModels.isEmpty) {
+        _modelsError = 'Модели не загрузились';
+      } else {
+        _modelsError = null;
+      }
       // Сортировка моделей по имени по возрастанию
       _availableModels
           .sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
@@ -98,6 +115,7 @@ class ChatProvider with ChangeNotifier {
     } catch (e) {
       // Логирование ошибок загрузки моделей
       _log('Error loading models: $e');
+      _modelsError = 'Модели не загрузились';
     }
   }
 
@@ -106,11 +124,16 @@ class ChatProvider with ChangeNotifier {
     try {
       // Получение баланса из API
       _balance = await _api.getBalance();
+      if (_balance == 'Error') {
+        _balance = '\$0.00';
+      }
       // Уведомление слушателей об изменениях
       notifyListeners();
     } catch (e) {
       // Логирование ошибок загрузки баланса
       _log('Error loading balance: $e');
+      _balance = '\$0.00';
+      notifyListeners();
     }
   }
 

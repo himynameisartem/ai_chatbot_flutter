@@ -10,6 +10,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/chat_provider.dart';
 // Импорт модели сообщения
 import '../models/message.dart';
+import '../services/settings_service.dart';
+import 'provider_settings_screen.dart';
 
 // Виджет для обработки ошибок в UI
 class ErrorBoundary extends StatelessWidget {
@@ -229,8 +231,65 @@ class _MessageInputState extends State<_MessageInput> {
 }
 
 // Основной экран чата
-class ChatScreen extends StatelessWidget {
+class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  bool _settingsPromptShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkProviderSettings();
+    });
+  }
+
+  Future<void> _checkProviderSettings() async {
+    final hasSettings = await SettingsService().hasSettings();
+
+    if (hasSettings || !mounted || _settingsPromptShown) return;
+    _settingsPromptShown = true;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Нужна настройка'),
+          content: const Text(
+            'Для работы приложения выберите провайдера и введите API ключ.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Позже'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context, rootNavigator: true).pop();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  Navigator.of(this.context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ProviderSettingsScreen(),
+                    ),
+                  );
+                });
+              },
+              child: const Text('Настроить'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -263,9 +322,10 @@ class ChatScreen extends StatelessWidget {
       toolbarHeight: 48,
       title: Row(
         children: [
-          _buildModelSelector(context),
-          const Spacer(),
-          _buildBalanceDisplay(context),
+          Expanded(child: _buildModelSelector(context)),
+          const SizedBox(width: 8),
+          Flexible(child: _buildBalanceDisplay(context)),
+          const SizedBox(width: 4),
           _buildMenuButton(context),
         ],
       ),
@@ -276,78 +336,103 @@ class ChatScreen extends StatelessWidget {
   Widget _buildModelSelector(BuildContext context) {
     return Consumer<ChatProvider>(
       builder: (context, chatProvider, child) {
-        return SizedBox(
-          width: MediaQuery.of(context).size.width * 0.6,
-          child: DropdownButton<String>(
-            value: chatProvider.currentModel,
-            hint: const Text(
-              'Выберите модель',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-              overflow: TextOverflow.ellipsis,
-            ),
-            dropdownColor: const Color(0xFF333333),
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-            isExpanded: true,
-            underline: Container(
-              height: 1,
-              color: Colors.blue,
-            ),
-            onChanged: (String? newValue) {
-              if (newValue != null) {
-                chatProvider.setCurrentModel(newValue);
-              }
-            },
-            items: chatProvider.availableModels
-                .map<DropdownMenuItem<String>>((Map<String, dynamic> model) {
-              return DropdownMenuItem<String>(
-                value: model['id'],
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      model['name'] ?? '',
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
+        final currentModel = chatProvider.availableModels.any(
+          (model) => model['id'] == chatProvider.currentModel,
+        )
+            ? chatProvider.currentModel
+            : null;
+        String? currentModelName;
+        for (final model in chatProvider.availableModels) {
+          if (model['id'] == currentModel) {
+            currentModelName = model['name']?.toString();
+            break;
+          }
+        }
+        final label = currentModelName ?? 'Модели';
+
+        return PopupMenuButton<String>(
+          tooltip: 'Выбор модели',
+          color: const Color(0xFF333333),
+          padding: EdgeInsets.zero,
+          onSelected: (String modelId) {
+            chatProvider.setCurrentModel(modelId);
+          },
+          itemBuilder: (context) => chatProvider.availableModels
+              .map(
+                (model) => PopupMenuItem<String>(
+                  value: model['id'] as String,
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.65,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Tooltip(
-                          message: 'Входные токены',
-                          child: const Icon(Icons.arrow_upward, size: 12),
-                        ),
                         Text(
-                          chatProvider.formatPricing(
-                              double.tryParse(model['pricing']?['prompt']) ??
-                                  0.0),
-                          style: const TextStyle(fontSize: 10),
+                          model['name'] ?? '',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12),
                         ),
-                        const SizedBox(width: 8),
-                        Tooltip(
-                          message: 'Генерация',
-                          child: const Icon(Icons.arrow_downward, size: 12),
-                        ),
-                        Text(
-                          chatProvider.formatPricing(double.tryParse(
-                                  model['pricing']?['completion']) ??
-                              0.0),
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                        const SizedBox(width: 8),
-                        Tooltip(
-                          message: 'Контекст',
-                          child: const Icon(Icons.memory, size: 12),
-                        ),
-                        Text(
-                          ' ${model['context_length'] ?? '0'}',
-                          style: const TextStyle(fontSize: 10),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.arrow_upward, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              chatProvider.formatPricing(
+                                double.tryParse(
+                                      model['pricing']?['prompt']?.toString() ??
+                                          '0',
+                                    ) ??
+                                    0.0,
+                              ),
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.arrow_downward, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              chatProvider.formatPricing(
+                                double.tryParse(
+                                      model['pricing']?['completion']
+                                              ?.toString() ??
+                                          '0',
+                                    ) ??
+                                    0.0,
+                              ),
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.memory, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              model['context_length']?.toString() ?? '0',
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              );
-            }).toList(),
+              )
+              .toList(),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.white70),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -361,11 +446,12 @@ class ChatScreen extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 3.0),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.credit_card, size: 12, color: Colors.white70),
               const SizedBox(width: 4),
               Text(
-                chatProvider.balance,
+                chatProvider.balance == 'Error' ? '—' : chatProvider.balance,
                 style: const TextStyle(
                   color: Color(0xFF33CC33),
                   fontSize: 12,
@@ -382,6 +468,7 @@ class ChatScreen extends StatelessWidget {
   Widget _buildMenuButton(BuildContext context) {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert, color: Colors.white, size: 16),
+      padding: EdgeInsets.zero,
       color: const Color(0xFF333333),
       onSelected: (String choice) async {
         final chatProvider = context.read<ChatProvider>();

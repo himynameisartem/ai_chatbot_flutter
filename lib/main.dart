@@ -1,7 +1,5 @@
 // Импорт основных виджетов Flutter
 import 'package:flutter/material.dart';
-// Импорт пакета для работы с .env файлами
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 // Импорт пакета для локализации приложения
 import 'package:flutter_localizations/flutter_localizations.dart';
 // Импорт пакета для работы с провайдерами состояния
@@ -24,19 +22,26 @@ class MainTabScreen extends StatefulWidget {
 class _MainTabScreenState extends State<MainTabScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _screens = const [
-    ChatScreen(),
-    ProviderSettingsScreen(),
-    TokenStatsScreen(),
-    DailyCostChartScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final screens = [
+      const ChatScreen(),
+      ProviderSettingsScreen(
+        onSaved: () async {
+          if (!mounted) return;
+          setState(() {
+            _selectedIndex = 0;
+          });
+        },
+      ),
+      const TokenStatsScreen(),
+      const DailyCostChartScreen(),
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: _screens,
+        children: screens,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
@@ -141,15 +146,6 @@ void main() async {
       // Логирование стека вызовов
       debugPrint('Stack trace: ${details.stack}');
     };
-
-    // Загрузка переменных окружения из .env файла
-    await dotenv.load(fileName: ".env");
-    // Логирование успешной загрузки
-    debugPrint('Environment loaded');
-    // Проверка наличия API ключа
-    debugPrint('API Key present: ${dotenv.env['OPENROUTER_API_KEY'] != null}');
-    // Логирование базового URL
-    debugPrint('Base URL: ${dotenv.env['BASE_URL']}');
 
     // Запуск приложения с обработчиком ошибок
     runApp(const ErrorBoundaryWidget(child: MyApp()));
