@@ -1,17 +1,88 @@
-# ai_chatbot_flutter
+# AI Chat Flutter
 
-A new Flutter project.
+Flutter-приложение для общения с LLM через выбранного провайдера с локальным хранением ключа, аналитикой токенов и графиком расходов.
 
-## Getting Started
+## Что умеет приложение
 
-This project is a starting point for a Flutter application.
+- Первый запуск с выбором провайдера и вводом собственного API key
+- Сохранение настроек внутри приложения
+- Выбор модели из доступных моделей провайдера
+- Отправка сообщений в чат и получение ответов
+- Подсчёт токенов и стоимости сообщений
+- Встроенная аналитика по сессии, моделям и истории
+- График расходов по дням за последние 7 дней
 
-A few resources to get you started if this is your first Flutter project:
+## Скриншоты
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+### Чат
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Основной экран общения с моделью. Здесь выбирается модель, отображается баланс и ведётся диалог.
+
+![Chat screen](./assets/screenshots/chat.png)
+
+### Провайдер
+
+Экран настройки провайдера и API key. Ключ вводится пользователем и сохраняется внутри приложения.
+
+![Provider screen](./assets/screenshots/provider.png)
+
+### Статистика
+
+Экран с аналитикой сессии, статистикой по моделям, временем ответа и длиной сообщений.
+
+![Statistics screen](./assets/screenshots/statistics.png)
+
+### Расходы
+
+Экран с графиком расходов по дням. Показывает последние 7 дней активности.
+
+![Costs screen](./assets/screenshots/costs.png)
+
+## Как это устроено
+
+### Хранение настроек
+
+- `provider` и `api_key` сохраняются через `SharedPreferences`
+- ключ не показывается в интерфейсе
+- приложение работает только с пользовательским ключом, а не с вшитым в код секретом
+
+### Чат и API
+
+- `OpenRouterClient` формирует запросы к выбранному провайдеру
+- список моделей загружается из API
+- ответы, токены и стоимость сохраняются в локальную БД
+
+### Аналитика
+
+- `AnalyticsService` собирает данные текущей сессии
+- `ChatProvider` передаёт в аналитику количество токенов, время ответа и метаданные сообщений
+- вкладка `Статистика` читает агрегированные данные из провайдера и базы
+
+### Расходы
+
+- каждая запись сообщения хранит `cost`
+- экран `Расходы` строит дневную сводку по последним 7 дням
+- если данных мало, график остаётся компактным и не ломает интерфейс
+
+## Структура проекта
+
+- `lib/main.dart` - точка входа и контейнер приложения
+- `lib/screens/` - экраны чата, провайдера, статистики и расходов
+- `lib/providers/chat_provider.dart` - состояние чата и загрузка данных
+- `lib/api/openrouter_client.dart` - запросы к API провайдера
+- `lib/services/analytics_service.dart` - аналитика сессии
+- `lib/services/database_service.dart` - SQLite-хранилище сообщений и расходов
+- `lib/services/settings_service.dart` - хранение пользовательских настроек
+
+## Запуск
+
+```bash
+flutter pub get
+flutter run
+```
+
+## Примечания
+
+- Если приложение впервые запускается без сохранённых настроек, оно попросит выбрать провайдера и ввести ключ.
+- После сохранения приложение продолжает работать с данными из внутреннего хранилища.
+- Для демонстрации можно вставить свои скриншоты в папку `assets/screenshots/` и заменить плейсхолдеры в разделе выше.
