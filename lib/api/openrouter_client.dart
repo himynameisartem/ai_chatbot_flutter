@@ -27,11 +27,11 @@ class OpenRouterClient {
   // Приватный конструктор для реализации Singleton
   OpenRouterClient._internal()
       : apiKey =
-            dotenv.env['OPENROUTER_API_KEY'], // Получение API ключа из .env
+            dotenv.env['API_KEY'], // Получение API ключа из .env
         baseUrl = dotenv.env['BASE_URL'], // Получение базового URL из .env
         headers = {
           'Authorization':
-              'Bearer ${dotenv.env['OPENROUTER_API_KEY']}', // Заголовок авторизации
+              'Bearer ${dotenv.env['API_KEY']}', // Заголовок авторизации
           'Content-Type': 'application/json', // Указание типа контента
           'X-Title': 'AI Chat Flutter', // Название приложения
         } {
