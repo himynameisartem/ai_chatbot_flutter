@@ -179,4 +179,33 @@ class DatabaseService {
       };
     }
   }
+
+  // Метод получения расходов по дням
+  Future<List<Map<String, dynamic>>> getDailyCostStats({int days = 14}) async {
+    try {
+      final db = await database;
+      final rows = await db.rawQuery('''
+        SELECT 
+          date(timestamp) as day,
+          COALESCE(SUM(cost), 0) as total_cost
+        FROM messages
+        WHERE cost IS NOT NULL
+          AND date(timestamp) >= date('now', '-6 days')
+        GROUP BY date(timestamp)
+        ORDER BY day ASC
+      ''');
+
+      return rows
+          .map(
+            (row) => {
+              'day': row['day'] as String,
+              'total_cost': (row['total_cost'] as num?)?.toDouble() ?? 0.0,
+            },
+          )
+          .toList();
+    } catch (e) {
+      debugPrint('Error getting daily cost stats: $e');
+      return [];
+    }
+  }
 }
