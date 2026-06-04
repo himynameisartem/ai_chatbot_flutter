@@ -186,12 +186,12 @@ class DatabaseService {
       final db = await database;
       final rows = await db.rawQuery('''
         SELECT 
-          date(timestamp) as day,
+          substr(timestamp, 1, 10) as day,
           COALESCE(SUM(cost), 0) as total_cost
         FROM messages
         WHERE cost IS NOT NULL
-          AND date(timestamp) >= date('now', '-6 days')
-        GROUP BY date(timestamp)
+          AND substr(timestamp, 1, 10) >= date('now', '-6 days')
+        GROUP BY substr(timestamp, 1, 10)
         ORDER BY day ASC
       ''');
 
